@@ -7,7 +7,6 @@ import (
 	"breath/internal/config"
 	"breath/internal/detector"
 	"breath/internal/timer"
-	"breath/internal/tray"
 	"breath/internal/ui"
 
 	"fyne.io/fyne/v2/app"
@@ -33,22 +32,18 @@ func main() {
 
 	// 创建活跃状态追踪器
 	tracker := timer.NewActivityTracker(cfg, idleDetector, func(activeDuration float64) {
-		// 活跃时长达到阈值时的回调
+		// 活跃时长达到阈值时的回调 — 弹窗提醒（即使最小化也会弹出）
 		uiManager.ShowReminder(activeDuration)
 	})
 
-	// 创建系统托盘
-	trayManager := tray.NewManager(tracker, uiManager, cfg)
-
 	// 设置 UI 管理器的依赖
 	uiManager.SetTracker(tracker)
-	uiManager.SetTrayManager(trayManager)
 
 	// 启动活跃状态追踪
 	tracker.Start()
 
-	// 初始化系统托盘
-	trayManager.Setup(a)
+	// 显示主窗口
+	ui.ShowMainWindow(uiManager)
 
 	// 运行应用（Fyne 主循环，此处会阻塞直到应用退出）
 	a.Run()

@@ -7,17 +7,12 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// TrayManagerInterface 托盘管理器接口（避免循环依赖）
-type TrayManagerInterface interface {
-	UpdateStatus()
-}
-
 // Manager UI 管理器，统一管理所有窗口
 type Manager struct {
-	app     fyne.App
-	cfg     *config.Config
-	tracker *timer.ActivityTracker
-	tray    TrayManagerInterface
+	app        fyne.App
+	cfg        *config.Config
+	tracker    *timer.ActivityTracker
+	mainWindow fyne.Window
 }
 
 // NewManager 创建 UI 管理器
@@ -31,11 +26,6 @@ func NewManager(app fyne.App, cfg *config.Config) *Manager {
 // SetTracker 设置活跃状态追踪器
 func (m *Manager) SetTracker(tracker *timer.ActivityTracker) {
 	m.tracker = tracker
-}
-
-// SetTrayManager 设置托盘管理器
-func (m *Manager) SetTrayManager(tray TrayManagerInterface) {
-	m.tray = tray
 }
 
 // GetApp 获取 Fyne 应用实例
@@ -53,7 +43,7 @@ func (m *Manager) GetTracker() *timer.ActivityTracker {
 	return m.tracker
 }
 
-// ShowReminder 显示休息提醒弹窗
+// ShowReminder 显示休息提醒弹窗（即使主窗口最小化也会弹出）
 func (m *Manager) ShowReminder(activeDuration float64) {
 	ShowReminderWindow(m, activeDuration)
 }
