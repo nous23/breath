@@ -13,7 +13,7 @@ import (
 type Config struct {
 	mu sync.RWMutex `json:"-"`
 
-	// 活跃时长阈值（分钟），默认 45，范围 15-120
+	// 活跃时长阈值（分钟），默认 45，范围 1-120
 	ActiveThresholdMin int `json:"active_threshold_min"`
 	// 休息时长（分钟），默认 5，范围 1-30
 	BreakDurationMin int `json:"break_duration_min"`
@@ -69,7 +69,7 @@ func (c *Config) Validate() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.ActiveThresholdMin < 15 || c.ActiveThresholdMin > 120 {
+	if c.ActiveThresholdMin < 1 || c.ActiveThresholdMin > 120 {
 		c.ActiveThresholdMin = 45
 	}
 	if c.BreakDurationMin < 1 || c.BreakDurationMin > 30 {

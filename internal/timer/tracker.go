@@ -39,19 +39,28 @@ type ActivityTracker struct {
 	postponeCount int           // 推迟提醒次数
 	alerted       bool          // 本轮是否已触发过提醒
 
-	ticker *time.Ticker
-	stopCh chan struct{}
+	ticker     *time.Ticker
+	stopCh     chan struct{}
+	postponeCh chan struct{} // 用于取消所有正在运行的 Postpone 定时器
 }
 
 // NewActivityTracker 创建活跃状态追踪器
 func NewActivityTracker(cfg *config.Config, det detector.IdleDetector, onAlert OnThresholdReached) *ActivityTracker {
 	return &ActivityTracker{
-		cfg:      cfg,
-		detector: det,
-		onAlert:  onAlert,
-		state:    StateActive,
-		stopCh:   make(chan struct{}),
+		cfg:        cfg,
+		detector:   det,
+		onAlert:    onAlert,
+		state:      StateActive,
+		stopCh:     make(chan struct{}),
+		postponeCh: make(chan struct{}),
 	}
+}
+
+// SetOnAlert 设置活跃阈值回调函数
+func (t *ActivityTracker) SetOnAlert(fn OnThresholdReached) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.onAlert = fn
 }
 
 // Start 启动活跃状态追踪
@@ -107,7 +116,6 @@ func (t *ActivityTracker) Resume() {
 // Reset 重置活跃计时器
 func (t *ActivityTracker) Reset() {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 
 	t.activeDur = 0
 	t.activeStart = time.Now()
@@ -116,13 +124,24 @@ func (t *ActivityTracker) Reset() {
 	if t.state != StatePaused {
 		t.state = StateActive
 	}
+
+	// 关闭旧的 postponeCh，取消所有正在运行的 Postpone 定时器
+	close(t.postponeCh)
+	// 创建新的 postponeCh 供后续使用
+	t.postponeCh = make(chan struct{})
+
+	t.mu.Unlock()
 }
 
 // Postpone 推迟提醒，在推迟间隔后重新触发
 func (t *ActivityTracker) Postpone() {
 	t.mu.Lock()
 	t.postponeCount++
-	t.alerted = false // 允许下次到达阈值时再次触发
+	// 注意：保持 alerted = true，不设置为 false
+	// 这样 tick() 不会因为活跃时长仍超过阈值而立即重复触发提醒
+	// 推迟后的重新提醒完全由下面的定时器 goroutine 负责
+	// 捕获当前的 postponeCh，用于检测 Reset 是否发生
+	currentPostponeCh := t.postponeCh
 	t.mu.Unlock()
 
 	// 在推迟间隔后重新触发提醒
@@ -145,6 +164,9 @@ func (t *ActivityTracker) Postpone() {
 				t.mu.Unlock()
 				onAlert(activeMins)
 			}
+		case <-currentPostponeCh:
+			// Reset 被调用，取消本次推迟提醒
+			return
 		case <-t.stopCh:
 			return
 		}

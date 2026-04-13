@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breath - 呼吸提醒</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #388E3C;
+            --primary-light: #C8E6C9;
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --border: #e0e0e0;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        /* 头部 */
+        .header {
+            text-align: center;
+            padding: 30px 0 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        /* 状态区域 */
+        .status-card {
+            text-align: center;
+        }
+
+        .state-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .state-active {
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        .state-idle {
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+
+        .state-paused {
+            background: #FFF3E0;
+            color: #E65100;
+        }
+
+        .state-overtime {
+            background: #FFEBEE;
+            color: #C62828;
+            animation: overtimePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes overtimePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .countdown {
+            font-size: 48px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--text);
+            margin: 12px 0;
+            letter-spacing: 2px;
+        }
+
+        .countdown-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            border-radius: 4px;
+            transition: width 0.5s ease, background 0.5s ease;
+            width: 0%;
+        }
+
+        .progress-bar.overtime {
+            background: linear-gradient(90deg, var(--danger), #c0392b);
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: right;
+            transition: color 0.3s ease;
+        }
+
+        .progress-text.overtime {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .countdown.overtime {
+            color: var(--danger);
+        }
+
+        .countdown-label.overtime {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        /* 按钮区域 */
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: var(--text);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* 设置区域 */
+        .settings-card {
+            display: none;
+        }
+
+        .settings-card.show {
+            display: block;
+        }
+
+        .settings-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .setting-label span {
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .setting-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        /* 滑块 + 输入框联动行 */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .slider-row input[type="range"] {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e0e0e0;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(76,175,80,0.4);
+            transition: transform 0.15s ease;
+        }
+
+        .slider-row input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-row input[type="range"]:active::-webkit-slider-thumb {
+            transform: scale(1.1);
+            box-shadow: 0 2px 10px rgba(76,175,80,0.6);
+        }
+
+        /* 数字输入框 + 单位 */
+        .number-input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .number-input-group input[type="number"] {
+            width: 56px;
+            height: 32px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            background: var(--card-bg);
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            -moz-appearance: textfield;
+        }
+
+        .number-input-group input[type="number"]::-webkit-outer-spin-button,
+        .number-input-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .number-input-group input[type="number"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(76,175,80,0.15);
+        }
+
+        .number-input-group .unit {
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        /* 范围提示 */
+        .range-hint {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            padding: 0 2px;
+        }
+
+        .range-hint span {
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        /* 开关 */
+        .switch-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .settings-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .settings-actions .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* 提醒弹窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .modal-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .modal h2 {
+            font-size: 22px;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .modal p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .modal .duration-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--danger);
+            margin: 12px 0;
+        }
+
+        .modal .warning-text {
+            color: var(--danger);
+            font-size: 13px;
+            margin: 8px 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        /* 休息倒计时 */
+        .break-card {
+            display: none;
+            text-align: center;
+        }
+
+        .break-card.show {
+            display: block;
+        }
+
+        .break-countdown {
+            font-size: 56px;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .break-tip {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        /* 版本信息 */
+        .footer {
+            text-align: center;
+            padding: 16px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        /* 连接状态 */
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .connection-status.connected {
+            background: var(--primary);
+        }
+
+        .connection-status.disconnected {
+            background: var(--danger);
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connStatus" title="连接状态"></div>
+
+    <div class="container">
+        <!-- 头部 -->
+        <div class="header">
+            <h1>🫁 Breath</h1>
+            <p>健康呼吸，定时提醒你休息</p>
+        </div>
+
+        <!-- 状态卡片 -->
+        <div class="card status-card" id="statusCard">
+            <div class="state-badge state-active" id="stateBadge">🟢 活跃中</div>
+            <div class="countdown" id="countdown">--:--</div>
+            <div class="countdown-label" id="countdownLabel">距离下次休息</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">已活跃 00:00 / 阈值 45 分钟</div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="card" id="actionCard">
+            <div class="actions">
+                <button class="btn btn-primary" id="pauseBtn" onclick="togglePause()">⏸ 暂停</button>
+                <button class="btn btn-secondary" id="resetBtn" onclick="resetTimer()">🔄 重置</button>
+                <button class="btn btn-secondary" id="settingsBtn" onclick="toggleSettings()">⚙️ 设置</button>
+            </div>
+        </div>
+
+        <!-- 设置面板 -->
+        <div class="card settings-card" id="settingsCard">
+            <div class="settings-title">⚙️ 设置</div>
+
+            <div class="setting-item">
+                <div class="setting-label">
+                    <span>活跃时长阈值</span>
+                </div>
+                <div class="slider-row">
+                    <input type="range" id="activeSlider" min="1" max="120" step="1" value="45"
+                        oninput="syncInput('activeSlider', 'activeInput')">
+                    <div class="number-input-group">
+                        <input type="number" id="activeInput" min="1" max="120" value="45"
+                            oninput="syncSlider('activeInput', 'activeSlider', 1, 120)">
+                        <span class="unit">分钟</span>
+                    </div>
+                </div>
+                <div class="range-hint"><span>1</span><span>120</span></div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-label">
+                    <span>休息时长</span>
+                </div>
+                <div class="slider-row">
+                    <input type="range" id="breakSlider" min="1" max="30" step="1" value="5"
+                        oninput="syncInput('breakSlider', 'breakInput')">
+                    <div class="number-input-group">
+                        <input type="number" id="breakInput" min="1" max="30" value="5"
+                            oninput="syncSlider('breakInput', 'breakSlider', 1, 30)">
+                        <span class="unit">分钟</span>
+                    </div>
+                </div>
+                <div class="range-hint"><span>1</span><span>30</span></div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-label">
+                    <span>空闲判定时长</span>
+                </div>
+                <div class="slider-row">
+                    <input type="range" id="idleSlider" min="1" max="15" step="1" value="5"
+                        oninput="syncInput('idleSlider', 'idleInput')">
+                    <div class="number-input-group">
+                        <input type="number" id="idleInput" min="1" max="15" value="5"
+                            oninput="syncSlider('idleInput', 'idleSlider', 1, 15)">
+                        <span class="unit">分钟</span>
+                    </div>
+                </div>
+                <div class="range-hint"><span>1</span><span>15</span></div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-label">
+                    <span>推迟提醒间隔</span>
+                </div>
+                <div class="slider-row">
+                    <input type="range" id="postponeSlider" min="1" max="15" step="1" value="5"
+                        oninput="syncInput('postponeSlider', 'postponeInput')">
+                    <div class="number-input-group">
+                        <input type="number" id="postponeInput" min="1" max="15" value="5"
+                            oninput="syncSlider('postponeInput', 'postponeSlider', 1, 15)">
+                        <span class="unit">分钟</span>
+                    </div>
+                </div>
+                <div class="range-hint"><span>1</span><span>15</span></div>
+            </div>
+
+            <div class="setting-item">
+                <div class="switch-container">
+                    <span>开机自启动</span>
+                    <label class="switch">
+                        <input type="checkbox" id="autoStartCheck">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button class="btn btn-primary" onclick="saveSettings()">✅ 保存</button>
+                <button class="btn btn-secondary" onclick="toggleSettings()">取消</button>
+            </div>
+        </div>
+
+        <!-- 休息倒计时卡片 -->
+        <div class="card break-card" id="breakCard">
+            <div style="font-size: 36px; margin-bottom: 8px;">🌿</div>
+            <h2>休息时间</h2>
+            <div class="break-countdown" id="breakCountdown">05:00</div>
+            <div class="break-tip">站起来走走，让眼睛看看远方 🌈</div>
+            <div class="progress-container">
+                <div class="progress-bar" id="breakProgress" style="background: linear-gradient(90deg, #66BB6A, #43A047);"></div>
+            </div>
+            <div style="margin-top: 16px;">
+                <button class="btn btn-secondary" onclick="skipBreak()">⏭ 跳过休息</button>
+            </div>
+        </div>
+
+        <div class="footer">Breath v1.0.0</div>
+    </div>
+
+    <!-- 提醒弹窗 -->
+    <div class="modal-overlay" id="reminderModal">
+        <div class="modal">
+            <div class="modal-icon">🫁</div>
+            <h2>该休息一下了</h2>
+            <div class="duration-text" id="reminderDuration"></div>
+            <p>休息一下，远眺窗外，活动活动身体吧！</p>
+            <div class="warning-text" id="reminderWarning" style="display:none;"></div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="startBreak()">🧘 开始休息</button>
+                <button class="btn btn-warning" onclick="postponeReminder()">⏰ 稍后提醒</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let settingsVisible = false;
+        let breakTimerInterval = null;
+
+        // ===== SSE 连接 =====
+        function connectSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource('/api/events');
+
+            eventSource.onopen = function() {
+                document.getElementById('connStatus').className = 'connection-status connected';
+            };
+
+            eventSource.onerror = function() {
+                document.getElementById('connStatus').className = 'connection-status disconnected';
+                // 3秒后重连
+                setTimeout(connectSSE, 3000);
+            };
+
+            eventSource.addEventListener('status', function(e) {
+                const data = JSON.parse(e.data);
+                updateUI(data);
+            });
+
+            eventSource.addEventListener('reminder', function(e) {
+                const data = JSON.parse(e.data);
+                showReminder(data);
+            });
+
+            eventSource.addEventListener('config', function(e) {
+                const data = JSON.parse(e.data);
+                updateSettingsUI(data);
+            });
+
+            // 服务端通知开始休息（用户在系统弹窗点击了"去休息"）
+            eventSource.addEventListener('break', function(e) {
+                const data = JSON.parse(e.data);
+                // 关闭提醒弹窗
+                document.getElementById('reminderModal').classList.remove('show');
+                // 进入休息倒计时
+                showBreakCountdown(data.break_duration_seconds);
+            });
+
+            // 服务端通知关闭提醒弹窗（用户在系统弹窗做了选择）
+            eventSource.addEventListener('dismiss_reminder', function(e) {
+                document.getElementById('reminderModal').classList.remove('show');
+            });
+        }
+
+        // ===== 更新主界面 =====
+        function updateUI(data) {
+            const badge = document.getElementById('stateBadge');
+            const countdown = document.getElementById('countdown');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            const countdownLabel = document.getElementById('countdownLabel');
+
+            // 判断是否超时
+            const isOvertime = data.active_seconds >= data.threshold_seconds;
+            const postponeCount = data.postpone_count || 0;
+
+            // 状态徽章
+            switch(data.state) {
+                case 'active':
+                    if (isOvertime) {
+                        badge.className = 'state-badge state-overtime';
+                        badge.textContent = '⚠️ 已超时';
+                    } else {
+                        badge.className = 'state-badge state-active';
+                        badge.textContent = '🟢 活跃中';
+                    }
+                    break;
+                case 'idle':
+                    badge.className = 'state-badge state-idle';
+                    badge.textContent = '💤 空闲中';
+                    break;
+                case 'paused':
+                    badge.className = 'state-badge state-paused';
+                    badge.textContent = '⏸ 已暂停';
+                    break;
+            }
+
+            // 倒计时
+            if (data.state === 'paused') {
+                countdown.textContent = '--:--';
+                countdown.classList.remove('overtime');
+                countdownLabel.classList.remove('overtime');
+                countdownLabel.textContent = '距离下次休息';
+            } else if (isOvertime) {
+                // 超时：显示已超时的时长
+                const overtimeSec = Math.floor(data.active_seconds - data.threshold_seconds);
+                const otMin = Math.floor(overtimeSec / 60);
+                const otSec = overtimeSec % 60;
+                countdown.textContent = '+' + String(otMin).padStart(2, '0') + ':' + String(otSec).padStart(2, '0');
+                countdown.classList.add('overtime');
+                countdownLabel.classList.add('overtime');
+                if (postponeCount > 0) {
+                    countdownLabel.textContent = `已超时 · 推迟了 ${postponeCount} 次`;
+                } else {
+                    countdownLabel.textContent = '已超时，请尽快休息';
+                }
+            } else {
+                const remainSec = Math.max(0, Math.floor(data.remaining_seconds));
+                const min = Math.floor(remainSec / 60);
+                const sec = remainSec % 60;
+                countdown.textContent = String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+                countdown.classList.remove('overtime');
+                countdownLabel.classList.remove('overtime');
+                countdownLabel.textContent = '距离下次休息';
+            }
+
+            // 进度条
+            const progress = Math.min(1, data.active_seconds / data.threshold_seconds);
+            progressBar.style.width = (progress * 100) + '%';
+            if (isOvertime) {
+                progressBar.classList.add('overtime');
+            } else {
+                progressBar.classList.remove('overtime');
+            }
+
+            // 进度文字
+            const activeMin = Math.floor(data.active_seconds / 60);
+            const activeSec = Math.floor(data.active_seconds) % 60;
+            const thresholdMin = Math.floor(data.threshold_seconds / 60);
+            if (isOvertime) {
+                const overtimeMin = Math.floor((data.active_seconds - data.threshold_seconds) / 60);
+                progressText.textContent = `已活跃 ${String(activeMin).padStart(2, '0')}:${String(activeSec).padStart(2, '0')} / 阈值 ${thresholdMin} 分钟（超时 ${overtimeMin} 分钟）`;
+                progressText.classList.add('overtime');
+            } else {
+                progressText.textContent = `已活跃 ${String(activeMin).padStart(2, '0')}:${String(activeSec).padStart(2, '0')} / 阈值 ${thresholdMin} 分钟`;
+                progressText.classList.remove('overtime');
+            }
+
+            // 更新暂停按钮
+            const pauseBtn = document.getElementById('pauseBtn');
+            if (data.state === 'paused') {
+                pauseBtn.textContent = '▶️ 恢复';
+                pauseBtn.className = 'btn btn-warning';
+            } else {
+                pauseBtn.textContent = '⏸ 暂停';
+                pauseBtn.className = 'btn btn-primary';
+            }
+        }
+
+        // ===== 显示提醒弹窗 =====
+        function showReminder(data) {
+            const modal = document.getElementById('reminderModal');
+            const durationEl = document.getElementById('reminderDuration');
+            const warningEl = document.getElementById('reminderWarning');
+
+            const mins = Math.floor(data.active_minutes);
+            const hours = Math.floor(mins / 60);
+            const remainMins = mins % 60;
+
+            if (hours > 0) {
+                durationEl.textContent = `您已连续使用电脑 ${hours} 小时 ${remainMins} 分钟`;
+            } else {
+                durationEl.textContent = `您已连续使用电脑 ${mins} 分钟`;
+            }
+
+            if (data.postpone_count >= 3) {
+                warningEl.style.display = 'block';
+                warningEl.textContent = `⚠️ 您已经推迟了 ${data.postpone_count} 次，长时间使用屏幕会对眼睛和身体造成伤害，请务必休息！`;
+            } else {
+                warningEl.style.display = 'none';
+            }
+
+            modal.classList.add('show');
+        }
+
+        // ===== 操作函数 =====
+        function togglePause() {
+            fetch('/api/toggle-pause', { method: 'POST' });
+        }
+
+        function resetTimer() {
+            fetch('/api/reset', { method: 'POST' });
+        }
+
+        function startBreak() {
+            document.getElementById('reminderModal').classList.remove('show');
+            fetch('/api/start-break', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    showBreakCountdown(data.break_duration_seconds);
+                });
+        }
+
+        function postponeReminder() {
+            document.getElementById('reminderModal').classList.remove('show');
+            fetch('/api/postpone', { method: 'POST' });
+        }
+
+        function skipBreak() {
+            if (breakTimerInterval) {
+                clearInterval(breakTimerInterval);
+                breakTimerInterval = null;
+            }
+            document.getElementById('breakCard').classList.remove('show');
+            document.getElementById('statusCard').style.display = '';
+            document.getElementById('actionCard').style.display = '';
+            fetch('/api/reset', { method: 'POST' });
+        }
+
+        function showBreakCountdown(totalSeconds) {
+            document.getElementById('statusCard').style.display = 'none';
+            document.getElementById('actionCard').style.display = 'none';
+            document.getElementById('settingsCard').classList.remove('show');
+            settingsVisible = false;
+
+            const breakCard = document.getElementById('breakCard');
+            breakCard.classList.add('show');
+
+            let remaining = totalSeconds;
+            const countdownEl = document.getElementById('breakCountdown');
+            const progressEl = document.getElementById('breakProgress');
+
+            function updateBreak() {
+                const min = Math.floor(remaining / 60);
+                const sec = remaining % 60;
+                countdownEl.textContent = String(min).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+                progressEl.style.width = ((totalSeconds - remaining) / totalSeconds * 100) + '%';
+
+                if (remaining <= 0) {
+                    clearInterval(breakTimerInterval);
+                    breakTimerInterval = null;
+                    breakCard.classList.remove('show');
+                    document.getElementById('statusCard').style.display = '';
+                    document.getElementById('actionCard').style.display = '';
+                }
+                remaining--;
+            }
+
+            updateBreak();
+            breakTimerInterval = setInterval(updateBreak, 1000);
+        }
+
+        // ===== 设置 =====
+        function toggleSettings() {
+            settingsVisible = !settingsVisible;
+            const card = document.getElementById('settingsCard');
+            if (settingsVisible) {
+                // 先加载当前配置
+                fetch('/api/config')
+                    .then(r => r.json())
+                    .then(data => {
+                        updateSettingsUI(data);
+                        card.classList.add('show');
+                    });
+            } else {
+                card.classList.remove('show');
+            }
+        }
+
+        // ===== 滑块 ↔ 输入框 双向同步 =====
+        function syncInput(sliderId, inputId) {
+            document.getElementById(inputId).value = document.getElementById(sliderId).value;
+        }
+
+        function syncSlider(inputId, sliderId, min, max) {
+            const input = document.getElementById(inputId);
+            let val = parseInt(input.value);
+            if (isNaN(val)) return; // 用户正在输入，不强制 clamp
+            val = Math.max(min, Math.min(max, val));
+            input.value = val;
+            document.getElementById(sliderId).value = val;
+        }
+
+        // 输入框失焦时强制 clamp 到合法范围
+        document.addEventListener('DOMContentLoaded', function() {
+            const pairs = [
+                { input: 'activeInput', slider: 'activeSlider', min: 1, max: 120 },
+                { input: 'breakInput', slider: 'breakSlider', min: 1, max: 30 },
+                { input: 'idleInput', slider: 'idleSlider', min: 1, max: 15 },
+                { input: 'postponeInput', slider: 'postponeSlider', min: 1, max: 15 }
+            ];
+            pairs.forEach(function(p) {
+                document.getElementById(p.input).addEventListener('blur', function() {
+                    let val = parseInt(this.value);
+                    if (isNaN(val) || val < p.min) val = p.min;
+                    if (val > p.max) val = p.max;
+                    this.value = val;
+                    document.getElementById(p.slider).value = val;
+                });
+                // 回车键也触发同步
+                document.getElementById(p.input).addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        this.blur();
+                    }
+                });
+            });
+        });
+
+        function updateSettingsUI(cfg) {
+            document.getElementById('activeSlider').value = cfg.active_threshold_min;
+            document.getElementById('activeInput').value = cfg.active_threshold_min;
+            document.getElementById('breakSlider').value = cfg.break_duration_min;
+            document.getElementById('breakInput').value = cfg.break_duration_min;
+            document.getElementById('idleSlider').value = cfg.idle_threshold_min;
+            document.getElementById('idleInput').value = cfg.idle_threshold_min;
+            document.getElementById('postponeSlider').value = cfg.postpone_interval_min;
+            document.getElementById('postponeInput').value = cfg.postpone_interval_min;
+            document.getElementById('autoStartCheck').checked = cfg.auto_start_enabled;
+        }
+
+        function saveSettings() {
+            const cfg = {
+                active_threshold_min: parseInt(document.getElementById('activeInput').value),
+                break_duration_min: parseInt(document.getElementById('breakInput').value),
+                idle_threshold_min: parseInt(document.getElementById('idleInput').value),
+                postpone_interval_min: parseInt(document.getElementById('postponeInput').value),
+                auto_start_enabled: document.getElementById('autoStartCheck').checked
+            };
+
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cfg)
+            }).then(r => {
+                if (r.ok) {
+                    toggleSettings();
+                }
+            });
+        }
+
+        // 启动
+        connectSSE();
+    </script>
+</body>
+</html>
